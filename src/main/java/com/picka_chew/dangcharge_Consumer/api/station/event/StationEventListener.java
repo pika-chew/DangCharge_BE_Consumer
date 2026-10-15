@@ -22,7 +22,7 @@ public class StationEventListener {
 	private final ApplyStationEventUseCase applyStationEventUseCase;
 	private final JsonMapper jsonMapper;
 
-	@KafkaListener(id = "station-event-listener", topics = EventTopicStaticValues.STATION)
+	@KafkaListener(id = "station-event-listener", idIsGroup = false, topics = EventTopicStaticValues.STATION)
 	public void onMessage(String message) {
 		applyStationEventUseCase.execute(jsonMapper.readValue(message, MESSAGE_TYPE));
 	}

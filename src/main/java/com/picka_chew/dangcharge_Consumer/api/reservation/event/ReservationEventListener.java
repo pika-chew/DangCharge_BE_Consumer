@@ -22,7 +22,7 @@ public class ReservationEventListener {
 	private final ApplyReservationEventUseCase applyReservationEventUseCase;
 	private final JsonMapper jsonMapper;
 
-	@KafkaListener(id = "reservation-event-listener", topics = EventTopicStaticValues.RESERVATION)
+	@KafkaListener(id = "reservation-event-listener", idIsGroup = false, topics = EventTopicStaticValues.RESERVATION)
 	public void onMessage(String message) {
 		applyReservationEventUseCase.execute(jsonMapper.readValue(message, MESSAGE_TYPE));
 	}

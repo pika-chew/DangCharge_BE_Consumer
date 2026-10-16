@@ -19,6 +19,23 @@ spring:
       # 처음 붙는 그룹은 토픽 처음부터 읽어 조회용 데이터를 채운다
       auto-offset-reset: earliest
 
+management:
+  endpoints:
+    web:
+      exposure:
+        # 헬스 체크만 노출한다. env, beans 등은 열지 않는다
+        include: health
+  endpoint:
+    health:
+      probes:
+        # k8s 밖(로컬, 도커)에서도 /actuator/health/liveness, /readiness를 켠다
+        enabled: true
+      group:
+        readiness:
+          # 조회 데이터가 MongoDB에 있어 MongoDB가 끊기면 트래픽에서 뺀다. liveness에는 넣지 않아 재시작을 막는다.
+          # Kafka는 넣지 않는다. 브로커가 끊겨도 저장된 데이터로 조회는 계속할 수 있다
+          include: readinessState,mongo
+
 springdoc:
   swagger-ui:
     path: /swagger-ui.html

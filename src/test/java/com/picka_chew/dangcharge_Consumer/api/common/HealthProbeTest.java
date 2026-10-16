@@ -22,9 +22,9 @@ import com.picka_chew.dangcharge_Consumer.security.TestJwtIssuer;
 
 /**
  * k8s probe가 파드에 직접 부르는 헬스 체크 경로. readiness는 실제 MongoDB 연결까지 본다.
- * Kafka 리스너는 이 테스트와 관계없어 끈다. Docker가 없으면 건너뛴다.
+ * Kafka 리스너는 이 테스트와 관계없어 끈다. Docker가 없으면 건너뛰지 않고 실패한다.
  */
-@Testcontainers(disabledWithoutDocker = true)
+@Testcontainers
 @SpringBootTest(properties = "spring.kafka.listener.auto-startup=false")
 @AutoConfigureMockMvc
 class HealthProbeTest {

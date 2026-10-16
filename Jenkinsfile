@@ -14,9 +14,9 @@
 // main일 때만 이미지/GitOps 단계를 돌리도록 when 조건으로 나눈다.
 //
 // [테스트 DB]
-// 지금은 MongoDB가 필요한 테스트가 없어 테스트용 DB를 띄우지 않는다.
-// MongoDB를 쓰는 테스트가 생기면 Producer의 'Test DB' 단계처럼 mongo 컨테이너를
-// ci-net-mtu1450 네트워크에 띄우고 접속 주소를 환경변수로 넘기는 단계를 추가한다.
+// Producer와 달리 Jenkins가 테스트 DB를 따로 띄우지 않는다. 통합 테스트가 Testcontainers로
+// Kafka·MongoDB 컨테이너를 직접 띄우고 지운다. 그래서 빌드 컨테이너에 호스트의 Docker 소켓을
+// 연결한다 (Docker가 없으면 통합 테스트가 실패한다).
 //
 // 필요 플러그인: Pipeline, GitHub Branch Source, Docker Pipeline,
 //               Credentials Binding, JUnit, Workspace Cleanup, Timestamper
@@ -93,6 +93,9 @@ pipeline {
             env.BUILD_KIND = "Push/Merge: ${env.BRANCH_NAME}"
           }
           currentBuild.description = "${env.BUILD_KIND} (${env.IMAGE_TAG})"
+
+          // Docker 소켓의 그룹 ID. 빌드 컨테이너(jenkins 사용자)를 이 그룹에 넣어야 소켓을 쓸 수 있다
+          env.DOCKER_GID = sh(script: 'stat -c %g /var/run/docker.sock', returnStdout: true).trim()
         }
         echo "${env.BUILD_KIND} / Image tag: ${env.IMAGE_TAG}"
 
@@ -123,8 +126,8 @@ pipeline {
         docker {
           image 'eclipse-temurin:17-jdk'   // Jenkins 서버에 JDK를 따로 설치하지 않아도 됨
           reuseNode true                   // 같은 workspace 사용 → 빌드 결과물(JAR)이 다음 단계로 이어짐
-          // MTU 1450 네트워크 + Gradle 캐시 볼륨
-          args "--network ci-net-mtu1450 -v ${env.GRADLE_CACHE}:/gradle-cache"
+          // MTU 1450 네트워크 + Gradle 캐시 볼륨 + Docker 소켓(Testcontainers용)
+          args "--network ci-net-mtu1450 -v ${env.GRADLE_CACHE}:/gradle-cache -v /var/run/docker.sock:/var/run/docker.sock --group-add ${env.DOCKER_GID}"
         }
       }
       environment {

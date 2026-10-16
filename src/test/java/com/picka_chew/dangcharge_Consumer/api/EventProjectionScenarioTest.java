@@ -53,9 +53,9 @@ import com.picka_chew.dangcharge_Consumer.domain.user.repository.UserRepository;
 import com.picka_chew.dangcharge_Consumer.security.TestJwtIssuer;
 
 /**
- * 실제 Kafka와 MongoDB로 producer 메시지를 받아 조회 API까지 확인한다. Docker가 없으면 건너뛴다.
+ * 실제 Kafka와 MongoDB로 producer 메시지를 받아 조회 API까지 확인한다. Docker가 없으면 건너뛰지 않고 실패한다.
  */
-@Testcontainers(disabledWithoutDocker = true)
+@Testcontainers
 @SpringBootTest
 @AutoConfigureMockMvc
 @Import(EventProjectionScenarioTest.Topics.class)

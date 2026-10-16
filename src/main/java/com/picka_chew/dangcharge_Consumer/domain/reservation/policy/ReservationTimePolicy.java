@@ -11,6 +11,7 @@ import java.util.List;
 import com.picka_chew.dangcharge_Consumer.common.util.TimeUtils;
 import com.picka_chew.dangcharge_Consumer.domain.reservation.entity.Reservation;
 import com.picka_chew.dangcharge_Consumer.domain.reservation.model.AvailableSlot;
+import com.picka_chew.dangcharge_Consumer.domain.reservation.model.SlotStatus;
 import com.picka_chew.dangcharge_Consumer.domain.station.entity.Charger;
 
 /**
@@ -45,12 +46,12 @@ public final class ReservationTimePolicy {
 	}
 
 	/**
-	 * 그날 시작할 수 있는 예약(30분 간격 시작, 1시간 이용) 중 충전기별로 비어 있는 것.
+	 * 그날 충전기별 예약 슬롯(30분 간격 시작, 1시간 이용). 겹치는 예약이 있으면 DISABLE, 없으면 ENABLE이다.
 	 * 이미 지난 시작 시각과 쓸 수 없는 충전기는 뺀다. 23:30 시작은 다음 날 00:30에 끝난다.
 	 *
 	 * @param reservations 그날 00:00부터 다음 날 01:00까지와 겹치는 진행 중 예약
 	 */
-	public static List<AvailableSlot> availableSlots(Collection<Charger> chargers,
+	public static List<AvailableSlot> slots(Collection<Charger> chargers,
 			Collection<Reservation> reservations, LocalDate date, Instant now) {
 		Instant dayStart = startOfDay(date);
 		Instant dayEnd = startOfDay(date.plusDays(1));
@@ -61,10 +62,13 @@ public final class ReservationTimePolicy {
 			}
 			for (Instant start = dayStart; start.isBefore(dayEnd); start = start.plus(SLOT)) {
 				Instant end = endOf(start);
-				if (start.isBefore(now) || overlapsAny(charger.getChargerId(), start, end, reservations)) {
+				if (start.isBefore(now)) {
 					continue;
 				}
-				slots.add(new AvailableSlot(charger.getChargerId(), start, end));
+				SlotStatus status = overlapsAny(charger.getChargerId(), start, end, reservations)
+						? SlotStatus.DISABLE
+						: SlotStatus.ENABLE;
+				slots.add(new AvailableSlot(charger.getChargerId(), start, end, status));
 			}
 		}
 		return slots;

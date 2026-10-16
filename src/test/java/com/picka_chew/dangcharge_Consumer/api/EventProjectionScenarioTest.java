@@ -2,6 +2,7 @@ package com.picka_chew.dangcharge_Consumer.api;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
+import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.not;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -167,7 +168,7 @@ class EventProjectionScenarioTest {
 	}
 
 	@Test
-	void availabilityHidesSlotsTakenByConfirmedReservations() throws Exception {
+	void availabilityDisablesSlotsTakenByConfirmedReservations() throws Exception {
 		LocalDate tomorrow = LocalDate.now(TimeUtils.ZONE).plusDays(1);
 		Instant noon = tomorrow.atTime(12, 0).atZone(TimeUtils.ZONE).toInstant();
 		send(EventTopicStaticValues.USER, 70L, message(40, "UserCreated", "user", 70,
@@ -185,10 +186,11 @@ class EventProjectionScenarioTest {
 		mockMvc.perform(get("/api/v1/stations/300/availability?date=" + day)
 						.header(HttpHeaders.AUTHORIZATION, TOKENS.bearer(70L)))
 				.andExpect(status().isOk())
-				// 고장 난 3002번은 빠지고 3001번만 48개 중 12:00 예약과 겹치는 3개가 빠진다
-				.andExpect(jsonPath("$.data.length()").value(45))
-				.andExpect(jsonPath("$.data[*].startAt", not(hasItem(day + "T12:00:00+09:00"))))
-				.andExpect(jsonPath("$.data[*].startAt", hasItem(day + "T13:00:00+09:00")));
+				// 고장 난 3002번은 빠지고 3001번 48개가 나온다. 12:00 예약과 겹치는 3개만 DISABLE이다
+				.andExpect(jsonPath("$.data.length()").value(48))
+				.andExpect(jsonPath("$.data[?(@.status == 'DISABLE')].startAt", contains(
+						day + "T11:30:00+09:00", day + "T12:00:00+09:00", day + "T12:30:00+09:00")))
+				.andExpect(jsonPath("$.data[?(@.startAt == '" + day + "T13:00:00+09:00')].status", contains("ENABLE")));
 	}
 
 	@Test

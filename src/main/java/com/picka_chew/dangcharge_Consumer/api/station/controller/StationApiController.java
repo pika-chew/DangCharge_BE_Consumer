@@ -89,7 +89,9 @@ public class StationApiController {
 	}
 
 	@Operation(summary = "날짜별 예약 가능 시간 슬롯",
-			description = "충전기별로 예약할 수 있는 1시간 구간을 30분 간격 시작 시각으로 내려준다. "
+			description = "충전기별 1시간 구간을 30분 간격 시작 시각으로 내려준다. "
+					+ "status는 ENABLE(예약 가능), DISABLE(이미 예약이 걸려 있음)이다. "
+					+ "이미 지난 시작 시각과 고장·점검 중인 충전기는 나오지 않는다. "
 					+ "내 차종을 지원하지 않는 충전소면 빈 목록이다. "
 					+ "로그인이 필요하다.")
 	@GetMapping("/{stationId}/availability")

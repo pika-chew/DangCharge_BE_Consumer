@@ -25,6 +25,7 @@ import com.picka_chew.dangcharge_Consumer.api.station.dto.AvailableSlotResponse;
 import com.picka_chew.dangcharge_Consumer.common.exception.ErrorStatus;
 import com.picka_chew.dangcharge_Consumer.domain.reservation.adaptor.ReservationAdaptor;
 import com.picka_chew.dangcharge_Consumer.domain.reservation.entity.Reservation;
+import com.picka_chew.dangcharge_Consumer.domain.reservation.model.SlotStatus;
 import com.picka_chew.dangcharge_Consumer.domain.station.adaptor.StationAdaptor;
 import com.picka_chew.dangcharge_Consumer.domain.station.entity.Charger;
 import com.picka_chew.dangcharge_Consumer.domain.station.entity.OperationalStatus;
@@ -53,7 +54,7 @@ class GetAvailabilityUseCaseTest {
 	}
 
 	@Test
-	void listsFreeSlotsOfStationChargersAfterNow() {
+	void listsSlotsAfterNowWithReservedOnesDisabled() {
 		given(stationAdaptor.getById(5L)).willReturn(station(Set.of(VehicleModel.TESLA)));
 		given(userAdaptor.getById(7L)).willReturn(User.builder().id(7L).vehicleModel(VehicleModel.TESLA).build());
 		given(reservationAdaptor.findConfirmedOverlapping(eq(List.of(11L, 12L)), any(), any())).willReturn(List.of(
@@ -62,14 +63,17 @@ class GetAvailabilityUseCaseTest {
 
 		List<AvailableSlotResponse> slots = useCase.execute(7L, 5L, DATE);
 
-		// 고장 난 12번은 빠지고, 11번은 09:30부터 23:30까지 30분 간격 중 12:00 예약과 겹치는 3개가 빠진다
+		// 고장 난 12번은 빠지고, 11번은 09:30부터 23:30까지 30분 간격 29개가 나온다
 		assertThat(slots).allMatch(slot -> slot.chargerId().equals(11L));
-		assertThat(slots).hasSize(29 - 3);
+		assertThat(slots).hasSize(29);
 		assertThat(slots.get(0).startAt()).isEqualTo(OffsetDateTime.parse("2026-10-15T09:30:00+09:00"));
-		assertThat(slots).extracting(AvailableSlotResponse::startAt)
-				.doesNotContain(OffsetDateTime.parse("2026-10-15T11:30:00+09:00"),
+		// 12:00 예약과 겹치는 3개만 DISABLE이다
+		assertThat(slots).filteredOn(slot -> slot.status() == SlotStatus.DISABLE)
+				.extracting(AvailableSlotResponse::startAt)
+				.containsExactly(OffsetDateTime.parse("2026-10-15T11:30:00+09:00"),
 						OffsetDateTime.parse("2026-10-15T12:00:00+09:00"),
 						OffsetDateTime.parse("2026-10-15T12:30:00+09:00"));
+		assertThat(slots).filteredOn(slot -> slot.status() == SlotStatus.ENABLE).hasSize(26);
 	}
 
 	@Test

@@ -21,8 +21,8 @@ import com.picka_chew.dangcharge_Consumer.domain.user.entity.User;
 import lombok.RequiredArgsConstructor;
 
 /**
- * 날짜별로 지금 예약할 수 있는 시작 시각(30분 간격, 1시간 이용). 로그인 사용자의 차종을 충전소가 지원하지 않으면 빈 목록이다.
- * 여기서 비어 있다고 나와도 최종 판단은 예약 생성에서 다시 한다.
+ * 날짜별 예약 슬롯(30분 간격 시작, 1시간 이용)과 예약 가능 여부. 이미 예약이 걸린 슬롯은 DISABLE로 함께 내려준다.
+ * 로그인 사용자의 차종을 충전소가 지원하지 않으면 빈 목록이다. 여기서 ENABLE이어도 최종 판단은 예약 생성에서 다시 한다.
  */
 @UseCase
 @RequiredArgsConstructor
@@ -49,7 +49,7 @@ public class GetAvailabilityUseCase {
 				chargers.stream().map(Charger::getChargerId).toList(),
 				ReservationTimePolicy.startOfDay(date),
 				ReservationTimePolicy.endOf(ReservationTimePolicy.startOfDay(date.plusDays(1))));
-		return ReservationTimePolicy.availableSlots(chargers, reservations, date, now).stream()
+		return ReservationTimePolicy.slots(chargers, reservations, date, now).stream()
 				.map(AvailableSlotResponse::from)
 				.toList();
 	}

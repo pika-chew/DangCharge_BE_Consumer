@@ -11,6 +11,7 @@ import org.junit.jupiter.api.Test;
 
 import com.picka_chew.dangcharge_Consumer.domain.reservation.entity.Reservation;
 import com.picka_chew.dangcharge_Consumer.domain.reservation.model.AvailableSlot;
+import com.picka_chew.dangcharge_Consumer.domain.reservation.model.SlotStatus;
 import com.picka_chew.dangcharge_Consumer.domain.station.entity.Charger;
 import com.picka_chew.dangcharge_Consumer.domain.station.entity.OperationalStatus;
 
@@ -20,10 +21,10 @@ class ReservationTimePolicyTest {
 
 	@Test
 	void everyHalfHourStartsOneHourReservationInKoreanTime() {
-		List<AvailableSlot> slots = ReservationTimePolicy.availableSlots(List.of(charger(1L, OperationalStatus.AVAILABLE)),
+		List<AvailableSlot> slots = ReservationTimePolicy.slots(List.of(charger(1L, OperationalStatus.AVAILABLE)),
 				List.of(), DATE, kst("2026-10-14T10:00"));
 
-		assertThat(slots).hasSize(48);
+		assertThat(slots).hasSize(48).allMatch(slot -> slot.status() == SlotStatus.ENABLE);
 		assertThat(slots.get(0).startsAt()).isEqualTo(kst("2026-10-15T00:00"));
 		assertThat(slots.get(0).endsAt()).isEqualTo(kst("2026-10-15T01:00"));
 		assertThat(slots.get(47).startsAt()).isEqualTo(kst("2026-10-15T23:30"));
@@ -31,21 +32,24 @@ class ReservationTimePolicyTest {
 	}
 
 	@Test
-	void excludesPastSlotsReservedSlotsAndBrokenChargers() {
+	void excludesPastSlotsAndBrokenChargersAndDisablesReservedSlots() {
 		Charger usable = charger(1L, OperationalStatus.UNKNOWN);
 		Charger broken = charger(2L, OperationalStatus.OUT_OF_SERVICE);
 		Reservation reservation = Reservation.builder()
 				.chargerId(1L).startsAt(kst("2026-10-15T12:00")).endsAt(kst("2026-10-15T13:00")).build();
 
-		List<AvailableSlot> slots = ReservationTimePolicy.availableSlots(List.of(usable, broken),
+		List<AvailableSlot> slots = ReservationTimePolicy.slots(List.of(usable, broken),
 				List.of(reservation), DATE, kst("2026-10-15T11:10"));
 
+		// 고장 난 2번은 빠지고, 이미 지난 11:00 시작도 빠진다
 		assertThat(slots).allMatch(slot -> slot.chargerId().equals(1L));
-		// 12:00~13:00 예약이 있으면 11:30, 12:00, 12:30 시작은 겹친다
-		assertThat(slots).extracting(AvailableSlot::startsAt)
-				.doesNotContain(kst("2026-10-15T11:00"), kst("2026-10-15T11:30"), kst("2026-10-15T12:00"),
-						kst("2026-10-15T12:30"))
-				.contains(kst("2026-10-15T13:00"));
+		assertThat(slots).extracting(AvailableSlot::startsAt).doesNotContain(kst("2026-10-15T11:00"));
+		// 12:00~13:00 예약과 겹치는 11:30, 12:00, 12:30 시작만 DISABLE이다
+		assertThat(slots).filteredOn(slot -> slot.status() == SlotStatus.DISABLE)
+				.extracting(AvailableSlot::startsAt)
+				.containsExactly(kst("2026-10-15T11:30"), kst("2026-10-15T12:00"), kst("2026-10-15T12:30"));
+		assertThat(slots).filteredOn(slot -> slot.startsAt().equals(kst("2026-10-15T13:00")))
+				.extracting(AvailableSlot::status).containsExactly(SlotStatus.ENABLE);
 	}
 
 	@Test
